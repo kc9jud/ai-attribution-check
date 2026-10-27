@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+# SPDX-FileCopyrightText: Copyright Contributors to the Kokkos project
+
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  # The commit-stage hooks of .pre-commit-config.yaml (hygiene, shellcheck,
+  # actionlint), so CI and a contributor's hooks agree. The other jobs wait for it.
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - uses: j178/prek-action@44924fe9ef4a6f88253c4b6b1bf11c689d3ce53d # v3.1.0
+
+  test:
+    needs: pre-commit
+    strategy:
+      fail-fast: false
+      matrix:
+        # macOS ships Bash 3.2, the oldest shell the script supports.
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Show bash version
+      run: /bin/bash --version | head -1
+    # /bin/bash is Bash 3.2 on macOS runners; "env bash" may find a newer one.
+    - name: Run tests
+      run: /bin/bash tests/test.sh
+
+  # Dogfood: the action checks this repository's own pull requests.
+  self-check:
+    needs: pre-commit
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        fetch-depth: 0
+        persist-credentials: false
+    - uses: ./

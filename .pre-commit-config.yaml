@@ -1,0 +1,39 @@
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # v6.0.0
+    hooks:
+    - id: check-case-conflict
+    - id: check-executables-have-shebangs
+    - id: check-merge-conflict
+    - id: check-shebang-scripts-are-executable
+    - id: check-yaml
+    - id: end-of-file-fixer
+    - id: trailing-whitespace
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: 745eface02aef23e168a8afb6b5737818efbea95 # v0.11.0.1
+    hooks:
+    - id: shellcheck
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: 914e7df21a07ef503a81201c76d2b11c789d3fca # v1.7.12
+    hooks:
+    - id: actionlint
+
+  # Dogfood: this repository's own hooks, run from the working tree.
+  - repo: local
+    hooks:
+    - id: ai-attribution
+      name: AI attribution policy for commit author and trailers
+      entry: ./check_ai_attribution.sh --commit-msg
+      language: script
+      stages: [commit-msg]
+    - id: ai-attribution-range
+      name: AI attribution policy for pushed commits
+      entry: ./check_ai_attribution.sh --pre-push
+      language: script
+      stages: [pre-push]
+      always_run: true
+      pass_filenames: false

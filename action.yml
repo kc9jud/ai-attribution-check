@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+# SPDX-FileCopyrightText: Copyright Contributors to the Kokkos project
+
+name: AI attribution check
+description: Reject commits that list an AI agent as author or co-author; disclose AI assistance with Assisted-by.
+author: Patrick Fasano
+
+branding:
+  icon: git-commit
+  color: red
+
+inputs:
+  base-sha:
+    description: Start of the commit range (exclusive). Defaults to the pull request base SHA.
+    required: false
+    default: ""
+  head-sha:
+    description: End of the commit range (inclusive). Defaults to the pull request head SHA.
+    required: false
+    default: ""
+  extra-ai-identity-regex:
+    description: Extended regex of additional identities (name or email) to treat as AI agents.
+    required: false
+    default: ""
+  extra-bot-allowlist:
+    description: Extended regex of additional "[bot]" identities to allow, matched against "Name <email>".
+    required: false
+    default: ""
+  extra-descriptive-trailers:
+    description: >-
+      Comma-separated trailer keys (e.g. "Foo-by, Bar-by") under which an AI agent
+      is allowed when it is also named in an Assisted-by trailer.
+    required: false
+    default: ""
+  extra-human-only-trailers:
+    description: >-
+      Comma-separated trailer keys under which an AI agent is never allowed.
+      Wins over the descriptive list.
+    required: false
+    default: ""
+  policy-url:
+    description: Link printed after a violation.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      # Inputs go through env, never interpolated into the script.
+      env:
+        BASE_SHA: ${{ inputs.base-sha || github.event.pull_request.base.sha }}
+        HEAD_SHA: ${{ inputs.head-sha || github.event.pull_request.head.sha }}
+        EXTRA_AI_IDENTITY_REGEX: ${{ inputs.extra-ai-identity-regex }}
+        EXTRA_BOT_ALLOWLIST: ${{ inputs.extra-bot-allowlist }}
+        EXTRA_DESCRIPTIVE_TRAILERS: ${{ inputs.extra-descriptive-trailers }}
+        EXTRA_HUMAN_ONLY_TRAILERS: ${{ inputs.extra-human-only-trailers }}
+        POLICY_URL: ${{ inputs.policy-url }}
+      run: |
+        if [ -z "$BASE_SHA" ] || [ -z "$HEAD_SHA" ]; then
+          echo "::error::base-sha and head-sha are required outside pull_request events."
+          exit 2
+        fi
+        args=()
+        [ -z "$EXTRA_AI_IDENTITY_REGEX" ] || args+=(--extra-ai-identity-regex "$EXTRA_AI_IDENTITY_REGEX")
+        [ -z "$EXTRA_BOT_ALLOWLIST" ] || args+=(--extra-bot-allowlist "$EXTRA_BOT_ALLOWLIST")
+        # The script splits the comma-separated lists and validates the keys.
+        [ -z "$EXTRA_DESCRIPTIVE_TRAILERS" ] || args+=(--extra-descriptive-trailers "$EXTRA_DESCRIPTIVE_TRAILERS")
+        [ -z "$EXTRA_HUMAN_ONLY_TRAILERS" ] || args+=(--extra-human-only-trailers "$EXTRA_HUMAN_ONLY_TRAILERS")
+        [ -z "$POLICY_URL" ] || args+=(--policy-url "$POLICY_URL")
+        "$GITHUB_ACTION_PATH/check_ai_attribution.sh" ${args[@]+"${args[@]}"} "${BASE_SHA}..${HEAD_SHA}"

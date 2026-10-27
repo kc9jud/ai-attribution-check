@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+# SPDX-FileCopyrightText: Copyright Contributors to the Kokkos project
+
+- id: ai-attribution
+  name: AI attribution policy for commit author and trailers
+  description: Reject AI agents as commit author, in human-only trailers, or in descriptive trailers not disclosed in Assisted-by.
+  entry: check_ai_attribution.sh --commit-msg
+  language: script
+  stages: [commit-msg]
+
+# Exact check: runs the same range check as the Action on the commits being pushed.
+# The commit-msg hook above only predicts it.
+- id: ai-attribution-range
+  name: AI attribution policy for pushed commits
+  description: Check every commit being pushed, exactly as the GitHub Action does.
+  entry: check_ai_attribution.sh --pre-push
+  language: script
+  stages: [pre-push]
+  always_run: true
+  pass_filenames: false
